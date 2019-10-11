@@ -1,0 +1,29 @@
+Используется metric units.
+Все входные и выходные данные для функций имеют размерности этой системы единиц.
+Однако некоторые функции работают в другой системе единиц,
+конвертация единиц в таких случаях предусмотрена и происходит внутри функции.
+
+Посмотреть The SI Metric System of Units and SPE METRIC STANDARD стр. 24
+Пока используется Eclipse Technical Description 2014 (eng) стр. 984
+
+length - m
+diameter - m
+roughness_absolute - m
+angle_horizontal - degree
+time - day
+
+density - kg/m3
+viscosity - cP
+molar_mass - kg/kg-M
+
+pressure - barsa
+temperature - K
+gradient_temperature_geothermal - K/m
+
+heat_capacity_specific - kJ/kg/K
+thermal_conductivity - kJ/m/day/K
+resistance_thermal - 1/(kJ/m/day/K)
+
+coeff_heat_transfer_convective_forced - kJ/m2/day/K
+coeff_heat_transfer_convective_natural - kJ/m2/day/K
+coeff_heat_transfer_overall - kJ/m2/day/K
