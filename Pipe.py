@@ -9,7 +9,7 @@ class Pipe(object):
         diameter_outer (float): Наружный диаметр трубы, m.
         diameter_inner (float): Внутренний диаметр трубы, m.
         roughness_absolute (float): Абсолютная шероховатость стенок трубы, m.
-        angle_horizontal (float): Угол отклонения трубы от горизонтали, angle degree.
+        angle_horizontal (float): Угол отклонения трубы от горизонтали, deg.
         thermal_conductivity (float): Теплопроводность материала трубы, kJ/m/day/K.
         insulation (Insulation): Покрытие стенок трубы, object.
 

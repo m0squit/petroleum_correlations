@@ -85,12 +85,12 @@ class Well(object):
         gas = self.gas
         density = gas.density(pressure, temperature)
         coeff_thermal_expansion = 0.004824
-        coeff_thermal_expansion *= (1/(1 + conver.degreeC_to_degreeK))
+        coeff_thermal_expansion *= (1 / (1 + conver.degreeC_to_degreeK))
         viscosity = gas.viscosity(pressure, temperature)
         viscosity *= conver.cP_to_Pa_s
         term1 = (radius_casing_inner - radius_production_outer) ** 3 * density ** 2
         constant_gravity = const.CONSTANT_GRAVITY
-        constant_gravity *= conver.barsa_to_Pa
+        constant_gravity *= conver.bar_to_Pa
         term2 = coeff_thermal_expansion * constant_gravity * 3 / viscosity ** 2
         number_grashof = term1 * term2
         return number_grashof
@@ -262,7 +262,7 @@ class Well(object):
         gradient_temperature_geothermal = rock.gradient_temperature_geothermal
         pipe_casing = self.pipe_casing
         angle_horizontal = pipe_casing.angle_horizontal
-        angle_horizontal *= conver.degree_to_radian
+        angle_horizontal *= conver.deg_to_rad
         sin = math.sin(angle_horizontal)
 
         def target_function(temperature):
@@ -273,7 +273,7 @@ class Well(object):
             term1 = temperature_formation_initial - gradient_temperature_geothermal * coordinate * sin
             term2 = parameter_A * (1 - math.exp(-coordinate / parameter_A))
             constant_gravity = const.CONSTANT_GRAVITY
-            constant_gravity *= conver.barsa_to_Pa
+            constant_gravity *= conver.bar_to_Pa
             term3 = gradient_temperature_geothermal * sin - constant_gravity * sin / heat_capacity_specific
             temperature_calculation = term1 + term2 * term3
             error_temperature = temperature - temperature_calculation
@@ -322,13 +322,13 @@ class Well(object):
             pressure_loss_hydrostatic (float): Изменение гидростатического давления газа в сегменте трубы, barsa.
         """
         constant_gravity = const.CONSTANT_GRAVITY
-        constant_gravity *= (conver.barsa_to_Pa * conver.m_to_ft)
+        constant_gravity *= (conver.bar_to_Pa * conver.m_to_ft)
         gas = self.gas
         density = gas.density(pressure, temperature)
         density *= (conver.kg_to_lb / conver.m_to_ft ** 3)
         length_pipe_segment *= conver.m_to_ft
         pressure_loss_hydrostatic = constant_gravity / (144 * constant_gravity) * density * length_pipe_segment
-        pressure_loss_hydrostatic *= conver.psia_to_barsa
+        pressure_loss_hydrostatic *= conver.psi_to_bar
         return pressure_loss_hydrostatic
 
     def pressure_loss_friction(self, length_pipe_segment, pressure, temperature):
@@ -362,13 +362,13 @@ class Well(object):
         velosity *= (conver.m_to_ft / conver.day_to_s)
         length_pipe_segment *= conver.m_to_ft
         constant_gravity = const.CONSTANT_GRAVITY
-        constant_gravity *= (conver.barsa_to_Pa * conver.m_to_ft)
+        constant_gravity *= (conver.bar_to_Pa * conver.m_to_ft)
         diameter_inner *= conver.m_to_ft
 
         term1 = 2 * friction_factor_Fanning * density * velosity ** 2 * length_pipe_segment
         term2 = constant_gravity * diameter_inner
         pressure_loss_friction = term1 / term2
-        pressure_loss_friction *= conver.psia_to_barsa
+        pressure_loss_friction *= conver.psi_to_bar
         return pressure_loss_friction
 
     def fanning_correlation(self):
