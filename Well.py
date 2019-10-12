@@ -59,7 +59,7 @@ class Well(object):
         rate = density_standard * rate_standard / density
         area_flow = math.pi * diameter_inner ** 2 / 4
         velocity = rate / area_flow
-        velocity *= (1/conver.day_to_s)
+        velocity *= (1 / conver.day_to_s)
         viscosity = gas.viscosity(pressure, temperature)
         viscosity *= conver.cP_to_Pa_s
         number_reynolds = density * velocity * diameter_inner / viscosity
@@ -268,6 +268,7 @@ class Well(object):
         def target_function(temperature):
             gas = self.gas
             heat_capacity_specific = gas.heat_capacity_specific(pressure, temperature)
+            heat_capacity_specific *= conver.kJ_to_J
             parameter_A = self.parameter_A(pressure, temperature)
             term1 = temperature_formation_initial - gradient_temperature_geothermal * coordinate * sin
             term2 = parameter_A * (1 - math.exp(-coordinate / parameter_A))
@@ -358,7 +359,7 @@ class Well(object):
         velosity = rate / area_flow
 
         density *= (conver.kg_to_lb / conver.m_to_ft ** 3)
-        velosity *= conver.m_to_ft
+        velosity *= (conver.m_to_ft / conver.day_to_s)
         length_pipe_segment *= conver.m_to_ft
         constant_gravity = const.CONSTANT_GRAVITY
         constant_gravity *= (conver.barsa_to_Pa * conver.m_to_ft)

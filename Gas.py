@@ -213,7 +213,7 @@ class Gas(object):
         term5 = a10 * (pressure_reduced / temperature_reduced) ** 2
         term6 = a11 * (pressure_reduced / temperature_reduced)
         thermal_conductivity = k1_atm * (1 + term3 * term4 + term5 + term6)
-        thermal_conductivity *= (conver.Btu_to_kJ/conver.ft_to_m/conver.hr_to_day/conver.degreeF_to_degreeK)
+        thermal_conductivity *= (conver.Btu_to_kJ/conver.ft_to_m/conver.hr_to_day) #/conver.degreeF_to_degreeK)
         return thermal_conductivity
 
     def number_prandtl(self, pressure, temperature):
