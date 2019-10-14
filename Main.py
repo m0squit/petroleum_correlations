@@ -21,7 +21,7 @@ pipe_production = p.Pipe(length=1000,
                          diameter_outer=0.125,
                          diameter_inner=0.10,
                          roughness_absolute=1e-5,
-                         angle_horizontal=None,
+                         angle_horizontal=90,
                          thermal_conductivity=0.7,
                          insulation=None)
 
@@ -33,5 +33,5 @@ well = w.Well(pipe_casing=pipe_casing,
               rate_standard=1000,
               pressure_wellhead=100)
 
-a = well.fanning_correlation()
+a = well.compute_pressure_temperature_profile()
 print(f"a = {a}")
