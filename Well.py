@@ -42,8 +42,8 @@ class Well(object):
             Источник: https://en.wikipedia.org/wiki/Reynolds_number.
 
         Args:
-            pressure (float): Давление газа, barsa.
-            temperature (float): Температура газа, K.
+            pressure (float): Давление газа в НКТ скважины, barsa.
+            temperature (float): Температура газа в НКТ скважины, K.
 
         Returns:
             number_reynolds (float): Число Рейнольдса для потока газа в НКТ скважины
@@ -84,14 +84,13 @@ class Well(object):
         radius_production_outer = pipe_production.diameter_outer / 2
         gas = self.gas
         density = gas.density(pressure, temperature)
-        coeff_thermal_expansion = 0.004824
-        coeff_thermal_expansion *= (1 / (1 + conver.degreeC_to_degreeK))
+        thermal_expansion = gas.thermal_expansion(pressure, temperature)
         viscosity = gas.viscosity(pressure, temperature)
         viscosity *= conver.cP_to_Pa_s
         term1 = (radius_casing_inner - radius_production_outer) ** 3 * density ** 2
         constant_gravity = const.CONSTANT_GRAVITY
         constant_gravity *= conver.bar_to_Pa
-        term2 = coeff_thermal_expansion * constant_gravity * 3 / viscosity ** 2
+        term2 = thermal_expansion * constant_gravity * 3 / viscosity ** 2
         number_grashof = term1 * term2
         return number_grashof
 

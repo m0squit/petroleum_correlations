@@ -33,5 +33,5 @@ well = w.Well(pipe_casing=pipe_casing,
               rate_standard=1000,
               pressure_wellhead=100)
 
-a = well.compute_pressure_temperature_profile()
+a = well.compute_pressure_temperature_profile(method_temperature="hasan_kabir")
 print(f"a = {a}")

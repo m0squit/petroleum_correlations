@@ -1,4 +1,5 @@
 import math
+import scipy.misc as misc
 import Constants as const
 import ConversionFactors as conver
 
@@ -72,6 +73,20 @@ class Gas(object):
         temperature_reduced = self.temperature_reduced(temperature)
         compressibility_factor = (0.4 * math.log10(temperature_reduced) + 0.73) ** pressure_reduced + 0.1 * pressure_reduced
         return compressibility_factor
+
+    def thermal_expansion(self, pressure, temperature):
+        compressibility_factor = self.compressibility_factor(pressure, temperature)
+        pressure_reduced = self.pressure_reduced(pressure)
+
+        def target_function(_temperature):
+            temperature_reduced = self.temperature_reduced(_temperature)
+            term1 = (0.4 * math.log10(temperature_reduced) + 0.73) ** pressure_reduced
+            term2 = 0.1 * pressure_reduced
+            return ((term1 + term2) * _temperature) ** (-1)
+
+        derivative_point = misc.derivative(target_function, temperature, dx=1e-6)
+        thermal_expansion = -compressibility_factor * temperature * derivative_point
+        return thermal_expansion
 
     def density(self, pressure, temperature):
         """Расчет плотности газа.
