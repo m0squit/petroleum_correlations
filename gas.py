@@ -1,7 +1,7 @@
 import math
 import scipy.misc as misc
-import Constants as const
-import ConversionFactors as conver
+import constants as const
+import conversion_factors as conver
 
 
 class Gas(object):

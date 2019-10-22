@@ -12,6 +12,7 @@ kg_to_lb = 1 / 0.45359237  # https://en.wikipedia.org/wiki/Pound_(mass)
 kg_to_g = 1e3
 kg_M_to_mol = 1e3  # Eclipse Technical Description 2014 (eng) стр. 985
 
+bar_to_psi = 1 / 0.068947573
 psi_to_bar = 0.068947573  # https://en.wikipedia.org/wiki/Pounds_per_square_inch
 bar_to_Pa = 1e5
 

@@ -11,7 +11,7 @@ class Pipe(object):
         roughness_absolute (float): Абсолютная шероховатость стенок трубы, m.
         angle_horizontal (float): Угол отклонения трубы от горизонтали, deg.
         thermal_conductivity (float): Теплопроводность материала трубы, kJ/m/day/K.
-        insulation (Insulation): Покрытие стенок трубы, object.
+        insulation (insulation): Покрытие стенок трубы, object.
 
     """
 

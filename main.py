@@ -1,8 +1,8 @@
-import Rock as r
-import Gas as g
-import Insulation as i
-import Pipe as p
-import Well as w
+import rock as r
+import gas as g
+import insulation as i
+import pipe as p
+import well as w
 
 
 rock = r.Rock(temperature_formation_initial=350)
@@ -33,5 +33,5 @@ well = w.Well(pipe_casing=pipe_casing,
               rate_standard=1000,
               pressure_wellhead=100)
 
-a = well.compute_pressure_temperature_profile(method_temperature="hasan_kabir")
+a = well.compute_pressure_profile()
 print(f"a = {a}")

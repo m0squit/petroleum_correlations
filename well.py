@@ -1,17 +1,20 @@
 import math
 import scipy.optimize as optimize
-import Constants as const
-import ConversionFactors as conver
-
+import constants as const
+import conversion_factors as conver
+from methods_pressure import average
+from methods_pressure import fanning
+from methods_temperature import constant
+from methods_temperature import hasan_kabir
 
 class Well(object):
     """Класс описывает газовую скважину.
 
     Attributes:
-        pipe_casing (Pipe): Обсадная труба скважины, object.
-        pipe_production (Pipe): Насосно-компрессорная труба скважины, object.
-        rock (Rock): Осредненная горная порода вокруг скважины, object.
-        gas (Gas): Газ скважины, object.
+        pipe_casing (pipe): Обсадная труба скважины, object.
+        pipe_production (pipe): Насосно-компрессорная труба скважины, object.
+        rock (rock): Осредненная горная порода вокруг скважины, object.
+        gas (gas): Газ скважины, object.
         time_work (float): Время работы скважины с момента последнего запуска, day.
         rate_standard (float): Дебит скважины в стандартных термобарических условиях, sm3/day.
         pressure_wellhead (float): Давление на устье скважины, barsa.
@@ -65,6 +68,24 @@ class Well(object):
         number_reynolds = density * velocity * diameter_inner / viscosity
         return number_reynolds
 
+    def number_nusselt(self, pressure, temperature):
+        """Расчет числа Нуссельта для газа в НКТ скважины.
+
+        Note:
+
+        Args:
+
+        Returns:
+            number_nusselt (float): Число Нуссельта для газа в НКТ скважины
+                в заданных термобарических условиях, dimensionless.
+
+        """
+        number_reynolds = self.number_reynolds(pressure, temperature)
+        gas = self.gas
+        number_prandtl = gas.number_prandtl(pressure, temperature)
+        number_nusselt = 0.023 * number_reynolds ** 0.8 * number_prandtl ** 0.3
+        return number_nusselt
+
     def number_grashof(self, pressure, temperature):
         """Расчет числа Грасгофа для газа в затрубном пространстве скважины.
 
@@ -93,24 +114,6 @@ class Well(object):
         term2 = thermal_expansion * constant_gravity * 3 / viscosity ** 2
         number_grashof = term1 * term2
         return number_grashof
-
-    def number_nusselt(self, pressure, temperature):
-        """Расчет числа Нуссельта для газа в НКТ скважины.
-
-        Note:
-
-        Args:
-
-        Returns:
-            number_nusselt (float): Число Нуссельта для газа в НКТ скважины
-                в заданных термобарических условиях, dimensionless.
-
-        """
-        number_reynolds = self.number_reynolds(pressure, temperature)
-        gas = self.gas
-        number_prandtl = gas.number_prandtl(pressure, temperature)
-        number_nusselt = 0.023 * number_reynolds ** 0.8 * number_prandtl ** 0.3
-        return number_nusselt
 
     def coeff_heat_transfer_convective_forced(self, pressure, temperature):
         """Расчет коэффициента вынужденной конвективной теплопередачи для потока газа в НКТ.
@@ -255,203 +258,62 @@ class Well(object):
         parameter_A = heat_capacity_specific * rate_mass / (coeff_heat_transfer_overall * math.pi * diameter_outer)
         return parameter_A
 
-    def temperature(self, coordinate, pressure):
-        rock = self.rock
-        temperature_formation_initial = rock.temperature_formation_initial
-        gradient_temperature_geothermal = rock.gradient_temperature_geothermal
-        pipe_casing = self.pipe_casing
-        angle_horizontal = pipe_casing.angle_horizontal
-        angle_horizontal *= conver.deg_to_rad
-        sin = math.sin(angle_horizontal)
+    @staticmethod
+    def select_method_pressure(name_method):
+        methods_pressure = {'average': average.AverageMethod,
+                            'fanning': fanning.FanningMethod}
+        method_pressure = methods_pressure[name_method]
+        return method_pressure
 
-        def target_function(temperature):
-            gas = self.gas
-            heat_capacity_specific = gas.heat_capacity_specific(pressure, temperature)
-            heat_capacity_specific *= conver.kJ_to_J
-            parameter_A = self.parameter_A(pressure, temperature)
-            term1 = temperature_formation_initial - gradient_temperature_geothermal * coordinate * sin
-            term2 = parameter_A * (1 - math.exp(-coordinate / parameter_A))
-            constant_gravity = const.CONSTANT_GRAVITY
-            constant_gravity *= conver.bar_to_Pa
-            term3 = gradient_temperature_geothermal * sin - constant_gravity * sin / heat_capacity_specific
-            temperature_calculation = term1 + term2 * term3
-            error_temperature = temperature - temperature_calculation
-            return error_temperature
+    @staticmethod
+    def select_method_temperature(name_method):
+        methods_temperature = {'constant': constant.ConstantMethod,
+                               'hasan_kabir': hasan_kabir.HasanKabirMethod}
+        method_temperature = methods_temperature[name_method]
+        return method_temperature
 
-        temperature = optimize.root_scalar(target_function, method='bisect', bracket=[273.15, 1000]).root
-        return temperature
-
-    def simple_temperature(self, x, y):
-        temperature_average = (349.9819 + 329.8312) / 2
-        return temperature_average
-
-    def friction_factor_fanning(self, pressure, temperature):
-        """Расчет коэффициента трения для сегмента трубы по Fanning.
-
-        Note:
-            Источник: http://fekete.com/SAN/TheoryAndEquations/PiperTheoryEquations/c-te-pressure.htm.
+    def compute_pressure_profile(self, method_pressure='average', method_temperature='constant', length_segment=10):
+        """Расчет профиля давления по стволу скважины.
 
         Args:
-            pressure (float): Давление флюида, barsa.
-            temperature (float): Температура флюида, K.
-
-        Returns:
-            friction_factor_fanning (float): Коэффициент трения для сегмента трубы с флюидом по Fanning.
+            method_pressure (string): Название метода расчета давления.
+            method_temperature (string): Название метода расчета температуры.
+            length_segment (float): Длина сегмента колонны труб, m.
 
         """
-        pipe_production = self.pipe_production
-        roughness_absolute = pipe_production.roughness_absolute
-        diameter_inner = pipe_production.diameter_inner
-        roughness_relative = roughness_absolute / diameter_inner
-        number_reynolds = self.number_reynolds(pressure, temperature)
-        term1 = 0.2698 * roughness_relative
-        term2 = 5.0452 / number_reynolds
-        term3 = math.log(0.3539 * roughness_relative ** 1.1098 + 5.8506 / number_reynolds ** 0.8981)
-        friction_factor_fanning = 1 / (-4 * math.log(term1 - term2 * term3)) ** 2
-        return friction_factor_fanning
-
-    def pressure_difference_hydrostatic(self, length_pipe_segment, pressure, temperature):
-        """Расчет изменения гидростатического давления в сегменте трубы.
-
-        Note:
-            Источник: http://fekete.com/SAN/TheoryAndEquations/PiperTheoryEquations/c-te-pressure.htm.
-
-        Args:
-            length_pipe_segment (float): Длина сегмента трубы, m.
-            pressure (float): Среднее давление флюида по длине сегмента, barsa.
-            temperature (float): Средняя температура флюида по длине сегмента, K.
-
-        Returns:
-            pressure_loss_hydrostatic (float): Изменение гидростатического давления газа в сегменте трубы, barsa.
-        """
-        constant_gravity = const.CONSTANT_GRAVITY
-        constant_gravity *= (conver.bar_to_Pa * conver.m_to_ft)
-        gas = self.gas
-        density = gas.density(pressure, temperature)
-        density *= (conver.kg_to_lb / conver.m_to_ft ** 3)
-        length_pipe_segment *= conver.m_to_ft
-        pressure_loss_hydrostatic = constant_gravity / (144 * constant_gravity) * density * length_pipe_segment
-        pressure_loss_hydrostatic *= conver.psi_to_bar
-        return pressure_loss_hydrostatic
-
-    def pressure_difference_friction(self, length_pipe_segment, pressure, temperature):
-        """Расчет потери давления на трение в сегменте трубы.
-
-        Note:
-            Используется корреляция Fanning.
-            Источник: http://fekete.com/SAN/TheoryAndEquations/PiperTheoryEquations/c-te-pressure.htm.
-
-        Args:
-            length_pipe_segment (float): Длина сегмента трубы, m.
-            pressure (float): Среднее давление флюида по длине сегмента, barsa.
-            temperature (float): Средняя температура флюида по длине сегмента, K.
-
-        Returns:
-            pressure_difference_friction (float): Потеря давления флюида на трение в сегменте трубы, barsa.
-
-        """
-        friction_factor_fanning = self.friction_factor_fanning(pressure, temperature)
-        gas = self.gas
-        density = gas.density(pressure, temperature)
-        density_standard = gas.density(const.PRESSURE_STANDARD, const.TEMPERATURE_STANDARD)
-        rate_standard = self.rate_standard
-        rate = density_standard * rate_standard / density
-        pipe_production = self.pipe_production
-        diameter_inner = pipe_production.diameter_inner
-        area_flow = math.pi * diameter_inner ** 2 / 4
-        velosity = rate / area_flow
-
-        density *= (conver.kg_to_lb / conver.m_to_ft ** 3)
-        velosity *= (conver.m_to_ft / conver.day_to_s)
-        length_pipe_segment *= conver.m_to_ft
-        constant_gravity = const.CONSTANT_GRAVITY
-        constant_gravity *= (conver.bar_to_Pa * conver.m_to_ft)
-        diameter_inner *= conver.m_to_ft
-
-        term1 = 2 * friction_factor_fanning * density * velosity ** 2 * length_pipe_segment
-        term2 = constant_gravity * diameter_inner
-        pressure_loss_friction = term1 / term2
-        pressure_loss_friction *= conver.psi_to_bar
-        return pressure_loss_friction
-
-    def fanning_correlation(self, pressure_output, temperature_average, length):
-
-        def target_function(pressure_input):
-            pressure_average = (pressure_output + pressure_input) / 2
-            pressure_difference_hydrostatic = self.pressure_difference_hydrostatic(length, pressure_average, temperature_average)
-            pressure_loss_friction = self.pressure_difference_friction(length, pressure_average, temperature_average)
-            _pressure_input = pressure_output + (pressure_difference_hydrostatic + pressure_loss_friction)
-            error_pressure_input = pressure_input - _pressure_input
-            return error_pressure_input
-
-        pressure_input = optimize.root_scalar(target_function, method='bisect', bracket=[pressure_output, 10000]).root
-        return pressure_input
-
-    def simple_correlation(self, pressure_output, temperature_average, length):
-        gas = self.gas
-        pipe_production = self.pipe_production
-
-        density_relative = gas.density_relative
-        angle_vertical = 90 - pipe_production.angle_horizontal
-        angle_vertical *= conver.deg_to_rad
-        cos = math.cos(angle_vertical)
-        coeff_friction = pipe_production.coeff_friction()
-        diameter_inner = pipe_production.diameter_inner
-
-        def target_function(pressure_input):
-            pressure_average = (pressure_output + pressure_input) / 2
-            compressibility_factor = gas.compressibility_factor(pressure_average, temperature_average)
-            parameter_s = 0.0375 * density_relative * length * cos / (compressibility_factor * temperature_average)
-            density_standard = gas.density(const.PRESSURE_STANDARD, const.TEMPERATURE_STANDARD)
-            rate_standard = self.rate_standard
-            density = gas.density(pressure_average, temperature_average)
-            rate = density_standard * rate_standard / density
-            term1 = 6.67 * 1e-4 * rate ** 2 * coeff_friction * temperature_average ** 2 * compressibility_factor ** 2
-            term2 = (math.exp(parameter_s) - 1) / diameter_inner ** 5 * cos
-            _pressure_input = pressure_output ** 2 * math.exp(parameter_s) + term1 * term2
-            error_pressure_input = pressure_input - _pressure_input
-            return error_pressure_input
-
-        pressure_input = optimize.root_scalar(target_function, method='bisect', bracket=[pressure_output, 10000]).root
-        return pressure_input
-
-    def compute_pressure_temperature_profile(self, method_pressure="fanning",
-                                             method_temperature="simple", length_pipe_segment=10):
-
-        methods_pressure = {"simple": self.simple_correlation,
-                            "fanning": self.fanning_correlation}
-
-        methods_temperature = {"simple": self.simple_temperature,
-                               "hasan_kabir": self.temperature}
+        _method_pressure = self.select_method_pressure(method_pressure)
+        _method_temperature = self.select_method_temperature(method_temperature)
+        calculator_pressure = _method_pressure(self)
+        calculator_temperature = _method_temperature(self)
 
         pipe_casing = self.pipe_casing
         length_pipe = pipe_casing.length
-        count_pipe_segment = int(length_pipe / length_pipe_segment)
-
-        pt = dict(coordinate=[None] * count_pipe_segment,
-                  pressure=[None] * count_pipe_segment,
-                  temperature=[None] * count_pipe_segment)
-
-        pressure_output = self.pressure_wellhead
         coordinate_output = length_pipe
-        coordinate_input = length_pipe - length_pipe_segment
-        for index_segment in range(count_pipe_segment):
-            coordinate_average = (coordinate_output + coordinate_input) / 2
-            pt['coordinate'][index_segment] = coordinate_average
-            temperature_output = methods_temperature[method_temperature](coordinate_output, pressure_output)
+        pressure_output = self.pressure_wellhead
+        temperature_output = calculator_temperature.compute(coordinate_output, pressure_output)
+
+        profile = dict(coordinate=[], pressure=[], temperature=[])
+        profile['coordinate'].append(coordinate_output)
+        profile['pressure'].append(pressure_output)
+        profile['temperature'].append(temperature_output)
+
+        coordinate_input = coordinate_output - length_segment
+
+        while coordinate_input != 0:
 
             def target_function(pressure_input):
-                temperature_input = methods_temperature[method_temperature](coordinate_input, pressure_input)
+                temperature_input = calculator_temperature.compute(coordinate_input, pressure_input)
                 temperature_average = (temperature_output + temperature_input) / 2
-                pt['temperature'][index_segment] = temperature_average
-                _pressure_input = methods_pressure[method_pressure](pressure_output, temperature_average, length_pipe_segment)
+                _pressure_input = calculator_pressure.compute(length_segment, pressure_output, temperature_average, )
                 error_pressure_input = pressure_input - _pressure_input
                 return error_pressure_input
 
-            pressure_input = optimize.root_scalar(target_function, method='bisect', bracket=[pressure_output, 10000]).root
-            pressure_average = (pressure_output + pressure_input) / 2
-            pt['pressure'][index_segment] = pressure_average
+            pressure_input = optimize.root_scalar(target_function, method='bisect', bracket=[pressure_output, 1e4]).root
+            temperature_input = calculator_temperature.compute(coordinate_input, pressure_input)
+            profile['coordinate'].append(coordinate_input)
+            profile['pressure'].append(pressure_input)
+            profile['temperature'].append(temperature_input)
             pressure_output = pressure_input
-            coordinate_output = coordinate_input
-            coordinate_input -= length_pipe_segment
-        return pt
+            temperature_output = temperature_input
+            coordinate_input -= length_segment
+        return profile
