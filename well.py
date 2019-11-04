@@ -2,40 +2,36 @@ import math
 import scipy.optimize as optimize
 import constants as const
 import conversion_factors as conver
-from methods_pressure import average
-from methods_pressure import fanning
-from methods_temperature import constant
-from methods_temperature import hasan_kabir
+from methods_pressure import *
+from methods_temperature import *
+
 
 class Well(object):
     """Класс описывает газовую скважину.
 
     Attributes:
-        pipe_casing (pipe): Обсадная труба скважины, object.
-        pipe_production (pipe): Насосно-компрессорная труба скважины, object.
-        rock (rock): Осредненная горная порода вокруг скважины, object.
-        gas (gas): Газ скважины, object.
+        rock (Rock): Осредненная горная порода вокруг скважины, object.
+        fluid (Fluid): Флюид скважины, object.
+        pipe_casing (Pipe): Обсадная труба скважины, object.
+        pipe_production (Pipe): Насосно-компрессорная труба скважины, object.
         time_work (float): Время работы скважины с момента последнего запуска, day.
-        rate_standard (float): Дебит скважины в стандартных термобарических условиях, sm3/day.
         pressure_wellhead (float): Давление на устье скважины, barsa.
 
     """
 
     def __init__(self,
+                 rock,
+                 fluid,
                  pipe_casing,
                  pipe_production,
-                 rock,
-                 gas,
                  time_work,
-                 rate_standard,
                  pressure_wellhead):
 
         self.pipe_casing = pipe_casing
         self.pipe_production = pipe_production
         self.rock = rock
-        self.gas = gas
+        self.fluid = fluid
         self.time_work = time_work
-        self.rate_standard = rate_standard
         self.pressure_wellhead = pressure_wellhead
 
     def number_reynolds(self, pressure, temperature):
@@ -53,12 +49,12 @@ class Well(object):
                 в заданных термобарических условиях, dimensionless.
 
         """
-        gas = self.gas
+        gas = self.fluid.phases[0]
         density = gas.density(pressure, temperature)
         pipe_production = self.pipe_production
         diameter_inner = pipe_production.diameter_inner
         density_standard = gas.density(const.PRESSURE_STANDARD, const.TEMPERATURE_STANDARD)
-        rate_standard = self.rate_standard
+        rate_standard = self.fluid.rates_standard[gas]
         rate = density_standard * rate_standard / density
         area_flow = math.pi * diameter_inner ** 2 / 4
         velocity = rate / area_flow
@@ -81,7 +77,7 @@ class Well(object):
 
         """
         number_reynolds = self.number_reynolds(pressure, temperature)
-        gas = self.gas
+        gas = self.fluid.phases[0]
         number_prandtl = gas.number_prandtl(pressure, temperature)
         number_nusselt = 0.023 * number_reynolds ** 0.8 * number_prandtl ** 0.3
         return number_nusselt
@@ -103,7 +99,7 @@ class Well(object):
         radius_casing_inner = pipe_casing.diameter_inner / 2
         pipe_production = self.pipe_production
         radius_production_outer = pipe_production.diameter_outer / 2
-        gas = self.gas
+        gas = self.fluid.phases[0]
         density = gas.density(pressure, temperature)
         thermal_expansion = gas.thermal_expansion(pressure, temperature)
         viscosity = gas.viscosity(pressure, temperature)
@@ -135,7 +131,7 @@ class Well(object):
 
         """
         number_nusselt = self.number_nusselt(pressure, temperature)
-        gas = self.gas
+        gas = self.fluid.phases[0]
         thermal_conductivity = gas.thermal_conductivity(pressure, temperature)
         pipe_production = self.pipe_production
         diameter_inner = pipe_production.diameter_inner
@@ -163,7 +159,7 @@ class Well(object):
 
         """
         number_grashof = self.number_grashof(pressure, temperature)
-        gas = self.gas
+        gas = self.fluid.phases[0]
         number_prandtl = gas.number_prandtl(pressure, temperature)
         thermal_conductivity = gas.thermal_conductivity(pressure, temperature)
         pipe_casing = self.pipe_casing
@@ -247,9 +243,9 @@ class Well(object):
             parameter_A (float): Параметр A, m.
 
         """
-        gas = self.gas
+        gas = self.fluid.phases[0]
         heat_capacity_specific = gas.heat_capacity_specific(pressure, temperature)
-        rate_standard = self.rate_standard
+        rate_standard = self.fluid.rates_standard[gas]
         density_standard = gas.density(const.PRESSURE_STANDARD, const.TEMPERATURE_STANDARD)
         rate_mass = density_standard * rate_standard
         coeff_heat_transfer_overall = self.coeff_heat_transfer_overall(pressure, temperature)
@@ -261,7 +257,8 @@ class Well(object):
     @staticmethod
     def select_method_pressure(name_method):
         methods_pressure = {'average': average.AverageMethod,
-                            'fanning': fanning.FanningMethod}
+                            'fanning': fanning.FanningMethod,
+                            'gray': gray.GrayMethod}
         method_pressure = methods_pressure[name_method]
         return method_pressure
 
@@ -272,7 +269,7 @@ class Well(object):
         method_temperature = methods_temperature[name_method]
         return method_temperature
 
-    def compute_pressure_profile(self, method_pressure='average', method_temperature='constant', length_segment=10):
+    def compute_pressure_profile(self, method_pressure='gray', method_temperature='constant', length_segment=10):
         """Расчет профиля давления по стволу скважины.
 
         Args:

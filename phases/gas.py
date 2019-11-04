@@ -74,19 +74,12 @@ class Gas(object):
         compressibility_factor = (0.4 * math.log10(temperature_reduced) + 0.73) ** pressure_reduced + 0.1 * pressure_reduced
         return compressibility_factor
 
-    def thermal_expansion(self, pressure, temperature):
+    def formation_volume_factor(self, pressure, temperature):
+        pressure_standard = const.PRESSURE_STANDARD
+        temperature_standard = const.TEMPERATURE_STANDARD
         compressibility_factor = self.compressibility_factor(pressure, temperature)
-        pressure_reduced = self.pressure_reduced(pressure)
-
-        def target_function(_temperature):
-            temperature_reduced = self.temperature_reduced(_temperature)
-            term1 = (0.4 * math.log10(temperature_reduced) + 0.73) ** pressure_reduced
-            term2 = 0.1 * pressure_reduced
-            return ((term1 + term2) * _temperature) ** (-1)
-
-        derivative_point = misc.derivative(target_function, temperature, dx=1e-6)
-        thermal_expansion = -compressibility_factor * temperature * derivative_point
-        return thermal_expansion
+        formation_volume_factor = pressure_standard * compressibility_factor * temperature / (temperature_standard * pressure)
+        return formation_volume_factor
 
     def density(self, pressure, temperature):
         """Расчет плотности газа.
@@ -132,53 +125,19 @@ class Gas(object):
         viscosity = k1 * math.exp(x * density ** y)
         return viscosity
 
-    def heat_capacity_specific(self, pressure, temperature):
-        """Расчет удельной изобарной теплоемкости газа.
-
-        Note:
-            Используется корреляция L.A.Kareem, T.M.Iwalewa, J.E.Omeke для природного газа.
-            Источник: L.A.Kareem, T.M.Iwalewa, J.E.Omeke Isobaric specific heat capacity of natural gas
-                as a function of specific gravity, pressure and temperature стр. 4, 8, 9.
-
-        Args:
-            pressure (float): Давление газа, barsa.
-            temperature (float): Темпераутра газа, K.
-
-        Returns:
-            heat_capacity_specific (float): Удельная изобарная теплоемкость газа
-                в заданных термобарических условиях, kJ/kg/K.
-
-        """
-        density_relative = self.density_relative
-        term1 = (-10.9602 * density_relative + 25.9033)
-        term2 = (2.1517 * 1e-1 * density_relative - 6.8687 * 1e-2) * temperature
-        term3 = (-1.3337 * 1e-4 * density_relative + 8.6387 * 1e-5) * temperature ** 2
-        term4 = (3.1474 * 1e-8 * density_relative - 2.8396 * 1e-8) * temperature ** 3
-        molar_heat_capacity_specific_ideal = term1 + term2 + term3 + term4
-
-        a1 = 4.80828
-        a2 = -4.01563
-        a3 = -0.0700681
-        a4 = 0.0567
-        a5 = 2.36642
-        a6 = -3.82421
-        a7 = 7.71784
-        r = 8.3145
+    def thermal_expansion(self, pressure, temperature):
+        compressibility_factor = self.compressibility_factor(pressure, temperature)
         pressure_reduced = self.pressure_reduced(pressure)
-        temperature_reduced = self.temperature_reduced(temperature)
-        t = 1 / temperature_reduced
-        term5 = (1 + (a1 * math.exp(a2 * (1 - t) ** 2) * pressure_reduced * t) ** 2)
-        term6 = (a7 + a6 * (pressure_reduced * t) + a5 * (pressure_reduced * t) ** 2 + a4 * (pressure_reduced * t) ** 3)
-        term7 = (a1 * math.exp(a2 * (1 - t) ** 2) * pressure_reduced * t) ** 2 * (a3 * (pressure_reduced * t) ** 6)
-        term8 = term6 ** 3
-        molar_heat_capacity_specific_residual = r * (term5 / term6 - term7 / term8)
 
-        molar_heat_capacity_specific_real = molar_heat_capacity_specific_ideal + molar_heat_capacity_specific_residual
-        molar_mass = self.molar_mass
-        molar_mass *= (1 / conver.kg_M_to_mol)
-        heat_capacity_specific = molar_heat_capacity_specific_real / molar_mass
-        heat_capacity_specific /= 1e3
-        return heat_capacity_specific
+        def target_function(_temperature):
+            temperature_reduced = self.temperature_reduced(_temperature)
+            term1 = (0.4 * math.log10(temperature_reduced) + 0.73) ** pressure_reduced
+            term2 = 0.1 * pressure_reduced
+            return ((term1 + term2) * _temperature) ** (-1)
+
+        derivative_point = misc.derivative(target_function, temperature, dx=1e-6)
+        thermal_expansion = -compressibility_factor * temperature * derivative_point
+        return thermal_expansion
 
     def thermal_conductivity(self, pressure, temperature):
         """Расчет теплопроводности газа.
@@ -230,6 +189,54 @@ class Gas(object):
         thermal_conductivity = k1_atm * (1 + term3 * term4 + term5 + term6)
         thermal_conductivity *= conver.Btu_per_ft_hr_degreeF_to_kJ_per_m_day_degreeK
         return thermal_conductivity
+
+    def heat_capacity_specific(self, pressure, temperature):
+        """Расчет удельной изобарной теплоемкости газа.
+
+        Note:
+            Используется корреляция L.A.Kareem, T.M.Iwalewa, J.E.Omeke для природного газа.
+            Источник: L.A.Kareem, T.M.Iwalewa, J.E.Omeke Isobaric specific heat capacity of natural gas
+                as a function of specific gravity, pressure and temperature стр. 4, 8, 9.
+
+        Args:
+            pressure (float): Давление газа, barsa.
+            temperature (float): Темпераутра газа, K.
+
+        Returns:
+            heat_capacity_specific (float): Удельная изобарная теплоемкость газа
+                в заданных термобарических условиях, kJ/kg/K.
+
+        """
+        density_relative = self.density_relative
+        term1 = (-10.9602 * density_relative + 25.9033)
+        term2 = (2.1517 * 1e-1 * density_relative - 6.8687 * 1e-2) * temperature
+        term3 = (-1.3337 * 1e-4 * density_relative + 8.6387 * 1e-5) * temperature ** 2
+        term4 = (3.1474 * 1e-8 * density_relative - 2.8396 * 1e-8) * temperature ** 3
+        molar_heat_capacity_specific_ideal = term1 + term2 + term3 + term4
+
+        a1 = 4.80828
+        a2 = -4.01563
+        a3 = -0.0700681
+        a4 = 0.0567
+        a5 = 2.36642
+        a6 = -3.82421
+        a7 = 7.71784
+        r = 8.3145
+        pressure_reduced = self.pressure_reduced(pressure)
+        temperature_reduced = self.temperature_reduced(temperature)
+        t = 1 / temperature_reduced
+        term5 = (1 + (a1 * math.exp(a2 * (1 - t) ** 2) * pressure_reduced * t) ** 2)
+        term6 = (a7 + a6 * (pressure_reduced * t) + a5 * (pressure_reduced * t) ** 2 + a4 * (pressure_reduced * t) ** 3)
+        term7 = (a1 * math.exp(a2 * (1 - t) ** 2) * pressure_reduced * t) ** 2 * (a3 * (pressure_reduced * t) ** 6)
+        term8 = term6 ** 3
+        molar_heat_capacity_specific_residual = r * (term5 / term6 - term7 / term8)
+
+        molar_heat_capacity_specific_real = molar_heat_capacity_specific_ideal + molar_heat_capacity_specific_residual
+        molar_mass = self.molar_mass
+        molar_mass *= (1 / conver.kg_M_to_mol)
+        heat_capacity_specific = molar_heat_capacity_specific_real / molar_mass
+        heat_capacity_specific /= 1e3
+        return heat_capacity_specific
 
     def number_prandtl(self, pressure, temperature):
         """Расчет числа Прандтля для газа.

@@ -77,7 +77,7 @@ class FanningMethod(object):
             temperature (float): Средняя температура флюида по длине сегмента, K.
 
         Returns:
-            pressure_difference_friction (float): Потеря давления флюида на трение в сегменте трубы, barsa.
+            __calc_pressure_difference_friction (float): Потеря давления флюида на трение в сегменте трубы, barsa.
 
         """
         friction_factor_fanning = self.friction_factor_fanning(pressure, temperature)
@@ -90,16 +90,16 @@ class FanningMethod(object):
         pipe_production = well.pipe_production
         diameter_inner = pipe_production.diameter_inner
         area_flow = math.pi * diameter_inner ** 2 / 4
-        velosity = rate / area_flow
+        velocity = rate / area_flow
 
         density *= (conver.kg_to_lb / conver.m_to_ft ** 3)
-        velosity *= (conver.m_to_ft / conver.day_to_s)
+        velocity *= (conver.m_to_ft / conver.day_to_s)
         length_pipe_segment *= conver.m_to_ft
         constant_gravity = const.CONSTANT_GRAVITY
         constant_gravity *= (conver.bar_to_Pa * conver.m_to_ft)
         diameter_inner *= conver.m_to_ft
 
-        term1 = 2 * friction_factor_fanning * density * velosity ** 2 * length_pipe_segment
+        term1 = 2 * friction_factor_fanning * density * velocity ** 2 * length_pipe_segment
         term2 = constant_gravity * diameter_inner
         pressure_loss_friction = term1 / term2
         pressure_loss_friction *= conver.psi_to_bar
