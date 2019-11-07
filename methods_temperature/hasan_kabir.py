@@ -22,7 +22,7 @@ class HasanKabirMethod(object):
 
     def target_function(self, temperature):
         well = self.well
-        gas = well.gas
+        gas = well.fluid.phases[0]
         pressure = self.pressure
         heat_capacity_specific = gas.heat_capacity_specific(pressure, temperature)
         heat_capacity_specific *= conver.kJ_to_J
@@ -45,5 +45,5 @@ class HasanKabirMethod(object):
         self.coordinate = coordinate
         self.pressure = pressure
         target_function = self.target_function
-        temperature = optimize.root_scalar(target_function, method='bisect', bracket=[273.15, 1e3]).root
+        temperature = optimize.root_scalar(target_function, method='brenth', bracket=[273.15, 1e3]).root
         return temperature

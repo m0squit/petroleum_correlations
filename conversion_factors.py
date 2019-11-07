@@ -3,6 +3,7 @@ import math
 
 m_to_ft = 1 / 0.3048  # https://en.wikipedia.org/wiki/Foot_(unit)
 ft_to_m = 0.3048  # https://en.wikipedia.org/wiki/Foot_(unit)
+m_to_in = 1 / 0.0254
 
 s_to_day = 1 / 86400
 day_to_s = 86400
@@ -35,3 +36,5 @@ Btu_per_ft_hr_degreeF_to_kJ_per_m_day_degreeK = 149.535504  # The SI Metric Syst
 
 g_per_cm3_to_kg_per_m3 = g_to_kg / cm3_to_m3
 kg_per_m3_to_lb_per_ft3 = kg_to_lb / m3_to_ft3
+
+dynes_per_cm_to_lbf_per_s2 = 1 / 0.00220462

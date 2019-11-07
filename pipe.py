@@ -1,4 +1,5 @@
 import math
+import conversion_factors as conver
 
 
 class Pipe(object):
@@ -60,6 +61,9 @@ class Pipe(object):
 
     def coeff_friction(self):
         diameter_inner = self.diameter_inner
-        roughness_absolute = self.roughness_absolute
-        coeff = 0.111 * (roughness_absolute * diameter_inner) ** 0.25
+        diameter_inner *= conver.m_to_in
+        if diameter_inner <= 4.277:
+            coeff = 0.01750 / diameter_inner ** 0.224
+        else:
+            coeff = 0.01603 / diameter_inner ** 0.164
         return coeff

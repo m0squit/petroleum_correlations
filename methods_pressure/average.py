@@ -33,7 +33,7 @@ class AverageMethod(object):
 
     def parameter_s(self, compressibility_factor):
         well = self.well
-        gas = well.gas
+        gas = well.fluid.phases[0]
         density_relative = gas.density_relative
         length = self.length
         length *= conver.m_to_ft
@@ -47,7 +47,7 @@ class AverageMethod(object):
         pressure_output = self.pressure_output
         pressure_output *= conver.bar_to_psi
         well = self.well
-        gas = well.gas
+        gas = well.fluid.phases[0]
         pressure_input *= conver.bar_to_psi
         pressure_average = (pressure_output + pressure_input) / 2
         temperature_average = self.temperature_average
@@ -56,7 +56,7 @@ class AverageMethod(object):
         pipe_production = well.pipe_production
         coeff_friction = pipe_production.coeff_friction()
         density_standard = gas.density(const.PRESSURE_STANDARD, const.TEMPERATURE_STANDARD)
-        rate_standard = well.rate_standard
+        rate_standard = well.fluid.rates_standard[gas]
         density = gas.density(pressure_average, temperature_average)
         rate = density_standard * rate_standard / density
         rate *= (conver.m_to_ft ** 3 / 1e6)
@@ -76,5 +76,5 @@ class AverageMethod(object):
         self.pressure_output = pressure_output
         self.temperature_average = temperature_average
         target_function = self.target_function
-        pressure_input = optimize.root_scalar(target_function, method='bisect', bracket=[pressure_output, 1e4]).root
+        pressure_input = optimize.root_scalar(target_function, method='brenth', bracket=[pressure_output, 1e3]).root
         return pressure_input

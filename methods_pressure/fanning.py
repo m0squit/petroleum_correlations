@@ -56,7 +56,7 @@ class FanningMethod(object):
         constant_gravity = const.CONSTANT_GRAVITY
         constant_gravity *= (conver.bar_to_Pa * conver.m_to_ft)
         well = self.well
-        gas = well.gas
+        gas = well.fluid.phases[0]
         density = gas.density(pressure, temperature)
         density *= (conver.kg_to_lb / conver.m_to_ft ** 3)
         length_pipe_segment *= conver.m_to_ft
@@ -82,10 +82,10 @@ class FanningMethod(object):
         """
         friction_factor_fanning = self.friction_factor_fanning(pressure, temperature)
         well = self.well
-        gas = well.gas
+        gas = well.fluid.phases[0]
         density = gas.density(pressure, temperature)
         density_standard = gas.density(const.PRESSURE_STANDARD, const.TEMPERATURE_STANDARD)
-        rate_standard = well.rate_standard
+        rate_standard = well.fluid.rates_standard[gas]
         rate = density_standard * rate_standard / density
         pipe_production = well.pipe_production
         diameter_inner = pipe_production.diameter_inner
@@ -121,5 +121,5 @@ class FanningMethod(object):
         self.pressure_output = pressure_output
         self.temperature_average = temperature_average
         target_function = self.target_function
-        pressure_input = optimize.root_scalar(target_function, method='bisect', bracket=[pressure_output, 10000]).root
+        pressure_input = optimize.root_scalar(target_function, method='brenth', bracket=[pressure_output, 1e3]).root
         return pressure_input

@@ -269,7 +269,7 @@ class Well(object):
         method_temperature = methods_temperature[name_method]
         return method_temperature
 
-    def compute_pressure_profile(self, method_pressure='gray', method_temperature='constant', length_segment=10):
+    def compute_pressure_profile(self, method_pressure='average', method_temperature='constant', length_segment=10):
         """Расчет профиля давления по стволу скважины.
 
         Args:
@@ -305,7 +305,7 @@ class Well(object):
                 error_pressure_input = pressure_input - _pressure_input
                 return error_pressure_input
 
-            pressure_input = optimize.root_scalar(target_function, method='bisect', bracket=[pressure_output, 1e4]).root
+            pressure_input = optimize.root_scalar(target_function, method='brenth', bracket=[pressure_output, 1e3]).root
             temperature_input = calculator_temperature.compute(coordinate_input, pressure_input)
             profile['coordinate'].append(coordinate_input)
             profile['pressure'].append(pressure_input)

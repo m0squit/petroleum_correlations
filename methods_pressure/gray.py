@@ -1,4 +1,6 @@
 import math
+from distutils.command.config import config
+
 import scipy.optimize as optimize
 import constants as const
 import conversion_factors as conver
@@ -25,7 +27,7 @@ class GrayMethod(object):
         self.pressure_output = pressure_output
         self.temperature_average = temperature_average
         target_function = self.__target_function
-        pressure_input = optimize.root_scalar(target_function, method='bisect', bracket=[pressure_output, 10000]).root
+        pressure_input = optimize.root_scalar(target_function, method='brenth', bracket=[pressure_output, 1e3]).root
         return pressure_input
 
     def __target_function(self, pressure_input):
@@ -45,7 +47,7 @@ class GrayMethod(object):
         fluid = self.fluid
         volume_fraction_water = self.__calc_volume_fraction_water(pressure, temperature)
         density = fluid.density(pressure, temperature, volume_fraction_water)
-        density *= (conver.kg_to_lb / conver.m_to_ft ** 3)
+        density *= conver.kg_per_m3_to_lb_per_ft3
         length_pipe_segment *= conver.m_to_ft
         pressure_loss_hydrostatic = constant_gravity / (144 * constant_gravity) * density * length_pipe_segment
         pressure_loss_hydrostatic *= conver.psi_to_bar
@@ -55,15 +57,14 @@ class GrayMethod(object):
         friction_factor_fanning = self.__calc_friction_factor_fanning(pressure, temperature)
         fluid = self.fluid
         density_no_slip = fluid.density_no_slip(pressure, temperature)
-        density_no_slip *= (conver.kg_to_lb / conver.m_to_ft ** 3)
-        pipe = self.pipe
-        diameter_inner = pipe.diameter_inner
-        diameter_inner *= conver.m_to_ft
         velocity_mixture = fluid.velocity_mixture(pressure, temperature)
-        velocity_mixture *= (conver.m_to_ft / conver.day_to_s)
+        velocity_mixture *= conver.m_to_ft
         length_pipe_segment *= conver.m_to_ft
         constant_gravity = const.CONSTANT_GRAVITY
         constant_gravity *= (conver.bar_to_Pa * conver.m_to_ft)
+        pipe = self.pipe
+        diameter_inner = pipe.diameter_inner
+        diameter_inner *= conver.m_to_ft
         term1 = 2 * friction_factor_fanning * density_no_slip * velocity_mixture ** 2 * length_pipe_segment
         term2 = 144 * constant_gravity * diameter_inner
         pressure_loss_friction = term1 / term2
@@ -74,13 +75,13 @@ class GrayMethod(object):
         fluid = self.fluid
         density_no_slip = fluid.density_no_slip(pressure, temperature)
         velocity_mixture = fluid.velocity_mixture(pressure, temperature)
+        velocity_mixture *= conver.m_to_ft
         constant_gravity = const.CONSTANT_GRAVITY
         constant_gravity *= (conver.bar_to_Pa * conver.m_to_ft)
-        surface_tension = fluid.surface_tension_gas_water(pressure, temperature)
+        surface_tension = fluid.calc_tension_gas_water(pressure, temperature)
         density_gas = fluid.phases[0].density(pressure, temperature)
         density_gas *= conver.kg_per_m3_to_lb_per_ft3
         density_water = fluid.phases[1].density(pressure, temperature)
-        density_water *= conver.kg_per_m3_to_lb_per_ft3
         term1 = (density_no_slip ** 2) * (velocity_mixture ** 4)
         term2 = constant_gravity * surface_tension * (density_water - density_gas)
         number_1 = term1 / term2
@@ -96,8 +97,7 @@ class GrayMethod(object):
         density_gas = fluid.phases[0].density(pressure, temperature)
         density_gas *= conver.kg_per_m3_to_lb_per_ft3
         density_water = fluid.phases[1].density(pressure, temperature)
-        density_water *= conver.kg_per_m3_to_lb_per_ft3
-        surface_tension = fluid.surface_tension_gas_water(pressure, temperature)
+        surface_tension = fluid.calc_tension_gas_water(pressure, temperature)
         number_2 = constant_gravity * (diameter_inner ** 2) * (density_water - density_gas) / surface_tension
         return number_2
 
@@ -123,16 +123,17 @@ class GrayMethod(object):
     def __calc_roughness_effective(self, pressure, temperature):
         fluid = self.fluid
         ratio_velocities = fluid.ratio_velocities(pressure, temperature)
-        surface_tension_gas_water = fluid.surface_tension_gas_water(pressure, temperature)
+        surface_tension_gas_water = fluid.calc_tension_gas_water(pressure, temperature)
         density_no_slip = fluid.density_no_slip(pressure, temperature)
         velocity_mixture = fluid.velocity_mixture(pressure, temperature)
+        velocity_mixture *= conver.m_to_ft
         roughness_0 = 28.5 * surface_tension_gas_water / (density_no_slip * velocity_mixture ** 2)
         if ratio_velocities >= 0.007:
             roughness_effective = roughness_0
         else:
             pipe = self.pipe
             roughness_absolute = pipe.roughness_absolute
-            roughness_absolute *= conver.m_to_ft
+            roughness_absolute *= conver.m_to_in
             roughness_effective = roughness_absolute + ratio_velocities * (roughness_0 - roughness_absolute) / 0.007
         return roughness_effective
 
@@ -140,7 +141,7 @@ class GrayMethod(object):
         pipe = self.pipe
         roughness_effective = self.__calc_roughness_effective(pressure, temperature)
         diameter_inner = pipe.diameter_inner
-        diameter_inner *= conver.m_to_ft
+        diameter_inner *= conver.m_to_in
         roughness_relative = roughness_effective / diameter_inner
         number_reynolds = 1e7
         term1 = 0.2698 * roughness_relative

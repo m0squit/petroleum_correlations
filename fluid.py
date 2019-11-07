@@ -28,7 +28,21 @@ class Fluid(object):
         self.rates_standard = {gas: rate_gas_standard, water: rate_water_standard}
 
     @staticmethod
-    def surface_tension_gas_water(pressure, temperature):
+    def calc_tension_gas_water(pressure, temperature):
+        """Расчет поверхностного натяжения между газом и водой.
+
+        Note:
+            Источник: http://fekete.com/SAN/TheoryAndEquations/PiperTheoryEquations/c-te-pressure.htm
+
+        Args:
+            pressure (float): Давление флюида, barsa.
+            temperature (float): Температура флюида, K.
+
+        Returns:
+            tension_gas_water (float): Поверхностное натяжение между газом и водой
+                в заданных термобарических условиях, dynes/cm.
+
+        """
         p = pressure * conver.bar_to_psi
         t = temperature * 9 / 5 - 459.67
         tension_gas_water = 0
@@ -43,6 +57,7 @@ class Fluid(object):
         if t1 < t < t2:
             f = inter.interp1d([t1, t2], [term1, term2])
             tension_gas_water = f(t)
+        tension_gas_water *= conver.dynes_per_cm_to_lbf_per_s2
         return tension_gas_water
 
     def velocity_mixture(self, pressure, temperature):
@@ -104,5 +119,6 @@ class Fluid(object):
             formation_volume_factor = phase.formation_volume_factor(pressure, temperature)
             rate = rate_standard * formation_volume_factor
             velocity_superficial = rate / area_flow
-            velocities_superficial[phase] = velocity_superficial * conver.m_to_ft
+            velocity_superficial *= (1 / conver.day_to_s)
+            velocities_superficial[phase] = velocity_superficial
         return velocities_superficial
